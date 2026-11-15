@@ -251,6 +251,7 @@ async function sendMsg(){
     });
     if(peer && peer.id === to.id) await loadChat();
     pendingMsgs = pendingMsgs.filter(x => x !== pr);
+    if(isG && MENTION_ELLA.test(texte)) appelerElla(to.id);   // Ella répond dans le groupe (05-groupes.js)
   }catch(e){
     pendingMsgs = pendingMsgs.filter(x => x !== pr);
     if(pr.url){ try{ URL.revokeObjectURL(pr.url); }catch(_){} }
@@ -307,4 +308,3 @@ function renderMsg(){
   $("#mf").onchange = e => { const f = e.target.files[0]; if(f && f.size > MSG_MAX){ msgMsg = "Fichier trop lourd (50 Mo maximum)."; mfile = null; } else { mfile = f || null; msgMsg = ""; } render(); };
   $("#ms").onclick = sendMsg;
 }
-

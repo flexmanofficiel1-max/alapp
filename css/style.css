@@ -227,3 +227,6 @@ body:has(.cbar.gcm) .w{padding-bottom:120px}
 :root[data-mode="dark"] .bres.ok{background:#12392A;color:#7FE3AE}
 :root[data-mode="dark"] .bres.ko{background:#3B1D1A;color:#FF9A8F}
 :root[data-mode="dark"] .wvc,:root[data-mode="dark"] .crc{background:var(--card);color:var(--tx)}
+.b.ella{background:color-mix(in srgb,var(--g) 9%,var(--card));border-color:color-mix(in srgb,var(--g) 40%,var(--bd))}
+.b.ella .sn{color:var(--g);opacity:1}
+.b.ella.pense span{font-style:italic;opacity:.75}

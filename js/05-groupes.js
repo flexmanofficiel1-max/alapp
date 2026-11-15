@@ -1,4 +1,24 @@
 let mtab = "dm", dmnew = false, gadd = false, gaddSel = [], gaddMem = new Set(), gaddRes = [], gok = "", gcreate = false, gnew = {nom:"", anon:false, sel:[]}, gsr = [], gmsgs = [];
+
+const MENTION_ELLA = /(^|[^\p{L}\p{N}_])@ella(?![\p{L}\p{N}_])/iu;
+let ellaPense = null;   // identifiant du groupe où Ella est en train d'écrire
+async function appelerElla(gid){
+  ellaPense = gid;
+  if(peer && peer.id === gid) drawGMsgs();
+  let erreur = "";
+  try{
+    await withAuth(async t => {
+      const r = await fetch(SUPABASE_URL + "/functions/v1/ella", {method:"POST", headers:{apikey:SUPABASE_KEY, Authorization:"Bearer " + t, "Content-Type":"application/json"}, body:JSON.stringify({groupe:gid})});
+      let d = null; try{ d = await r.json(); }catch(e){}
+      if(!r.ok) throw new Error((d && (d.erreur || d.message || d.msg)) || "Ella est indisponible pour le moment.");
+    });
+  }catch(e){ erreur = e.message; }
+  ellaPense = null;
+  if(!peer || peer.id !== gid) return;
+  if(erreur){ msgMsg = "Ella : " + erreur; render(); }
+  else await loadGChat();
+  drawGMsgs();
+}
 async function openGAdd(){
   gadd = true; gaddSel = []; gaddRes = []; gaddMem = new Set(); msgMsg = ""; gok = "";
   render();
@@ -96,19 +116,20 @@ async function patchG(id, patch){
 }
 function drawGMsgs(){
   const el = $("#ml"); if(!el) return;
-  const key = gmsgs.map(x => x.id + (x.modifie ? "m" : "") + (x.supprime ? "d" : "")).join("|") + "#" + sel + "#" + pendKey();
+  const pense = ellaPense === peer.id;
+  const key = gmsgs.map(x => x.id + (x.modifie ? "m" : "") + (x.supprime ? "d" : "")).join("|") + "#" + sel + "#" + pendKey() + (pense ? "#ella" : "");
   if(key === dk) return;
   const first = dk === ""; dk = key;
   const near = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   el.innerHTML = gmsgs.map(x => {
-    const mine = x.est_moi, live = mine && !x.supprime, rpt = !mine && !x.supprime;
-    const who = !mine ? '<small class="sn">' + esc(x.nom || (peer.anonyme ? "Anonyme" : "Étudiant")) + '</small>' : '';
+    const ia = !!x.est_ella, mine = x.est_moi, live = mine && !x.supprime, rpt = !mine && !ia && !x.supprime;
+    const who = ia ? '<small class="sn">🤖 Ella · IA</small>' : !mine ? '<small class="sn">' + esc(x.nom || (peer.anonyme ? "Anonyme" : "Étudiant")) + '</small>' : '';
     const body = x.supprime ? '<span class="del">🚫 Ce message a été supprimé</span>' : (x.texte ? '<span>' + esc(x.texte) + '</span>' : '') +
       msgMediaHtml(x);
     const act = live && sel === x.id ? '<div class="ma"><button data-me="' + x.id + '">✏️ Modifier</button><button data-md="' + x.id + '">🗑 Supprimer pour tous</button></div>' : (rpt && sel === x.id ? '<div class="ma"><button data-rp="' + (peer.grp ? "message_groupe" : "message") + ':' + x.id + '" data-ex="' + esc((x.texte || "").slice(0, 200)) + '">⚑ Signaler</button></div>' : '');
-    return '<div class="b' + (mine ? " me" : "") + '"' + (live || rpt ? ' data-b="' + x.id + '"' : '') + '>' + who + body + '<small>' + (x.modifie && !x.supprime ? "modifié · " : "") + new Date(x.created_at).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"}) + '</small>' + act + '</div>';
-  }).join("") + pendMsgHtml() || '<p class="pt c">Écris le premier message 👋</p>';
-  if(near || first) el.scrollTop = el.scrollHeight;
+    return '<div class="b' + (mine ? " me" : "") + (ia ? " ella" : "") + '"' + (live || rpt ? ' data-b="' + x.id + '"' : '') + '>' + who + body + '<small>' + (x.modifie && !x.supprime ? "modifié · " : "") + new Date(x.created_at).toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"}) + '</small>' + act + '</div>';
+  }).join("") + pendMsgHtml() + (pense ? '<div class="b ella pense"><small class="sn">🤖 Ella · IA</small><span>Ella écrit…</span></div>' : '') || '<p class="pt c">Écris le premier message 👋</p>';
+  if(near || first || pense) el.scrollTop = el.scrollHeight;
   el.querySelectorAll("[data-b]").forEach(b => b.onclick = ev => { if(ev.target.closest("button")) return; sel = sel === b.dataset.b ? null : b.dataset.b; drawGMsgs(); });
   el.querySelectorAll("[data-me]").forEach(b => b.onclick = async () => {
     const x = gmsgs.find(y => y.id === b.dataset.me), n = prompt("Modifier le message", x.texte || "");
@@ -214,7 +235,7 @@ async function gManage(){
 function renderGChat(){
   const err = msgMsg ? '<div class="msg">' + esc(msgMsg) + '</div>' : (gok ? '<div class="msg ok">' + esc(gok) + '</div>' : '');
   app.innerHTML = '<div class="nav"><button class="t" id="bk">← Retour</button><b>' + (peer.photo ? '<span class="av s" style="display:inline-block;vertical-align:middle;margin:0 8px 0 0;background-image:url(' + esc(peer.photo) + ')"></span>' : '') + esc(peer.nom) + '</b><button class="t" id="gi">ⓘ</button></div><div class="pt c hint">' + (peer.anonyme ? "🕶️ Groupe anonyme" : "👥 Groupe") + ' · ' + peer.nb + ' membres</div><div id="ml" class="ml"></div>' +
-    '<div class="cbar"><div id="em" class="em" hidden>' + EMO.map(e => '<button class="t" data-e="' + e + '">' + e + '</button>').join("") + '</div>' + (mfile ? '<div class="pt fn">📎 ' + esc(mfile.name) + '</div>' : '') + '<div class="row"><button class="ib t" id="eb">😊</button><label class="ib">📎<input type="file" id="mf" accept="' + MSG_ACCEPT + '" hidden></label><textarea id="mt" rows="1" placeholder="Message">' + esc(mdraft) + '</textarea><button class="ib send" id="ms">➤</button></div>' + err + '</div>';
+    '<div class="cbar"><div id="em" class="em" hidden>' + EMO.map(e => '<button class="t" data-e="' + e + '">' + e + '</button>').join("") + '</div>' + (mfile ? '<div class="pt fn">📎 ' + esc(mfile.name) + '</div>' : '') + '<div class="row"><button class="ib t" id="eb">😊</button><label class="ib">📎<input type="file" id="mf" accept="' + MSG_ACCEPT + '" hidden></label><textarea id="mt" rows="1" placeholder="Message (écris @Ella pour l’IA)">' + esc(mdraft) + '</textarea><button class="ib send" id="ms">➤</button></div>' + err + '</div>';
   dk = ""; drawGMsgs();
   $("#bk").onclick = async () => { await markRead(peer.id); clearInterval(poll); peer = null; render(); loadConvs(); };
   $("#gi").onclick = gInfo;
@@ -224,4 +245,3 @@ function renderGChat(){
   $("#mf").onchange = e => { const f = e.target.files[0]; if(f && f.size > MSG_MAX){ msgMsg = "Fichier trop lourd (50 Mo maximum)."; mfile = null; } else { mfile = f || null; msgMsg = ""; } render(); };
   $("#ms").onclick = sendMsg;
 }
-
