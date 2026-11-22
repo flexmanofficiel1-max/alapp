@@ -1,5 +1,8 @@
 # Journal des mises à jour
 
+## 2026-11-22
+- Affichage ordinateur (écrans de 900 px ou plus) : menu à gauche, accueil avec colonne de droite, messages en deux panneaux (liste + conversation), profil large avec mosaïque à 4 colonnes, Communauté en grille de cartes. Nouveau fichier `css/desktop.css`. Le téléphone n'est pas modifié (rendu identique vérifié). Fichiers modifiés : `index.html`, `css/desktop.css`, `js/01-core.js`, `03-feed.js`, `04-messages.js`, `05-groupes.js`, `06-communaute-evenements.js`, `15-routeur-demarrage.js`.
+
 ## 2026-11-12 (v2)
 - Code découpé : `index.html` allégé, `css/style.css`, un fichier JavaScript par partie du site.
 - Sécurité : plus de script en ligne, CSP renforcée (`script-src 'self'`).
